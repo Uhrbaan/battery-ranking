@@ -1,4 +1,4 @@
-module example.com/sin.04028/project1
+module github.com/Uhrbaan/battery-ranking/tree/main
 
 go 1.24.2
 
