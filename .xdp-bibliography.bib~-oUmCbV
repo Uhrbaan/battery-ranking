@@ -3,7 +3,7 @@
     title = {Eclipse Mosquitto},
 }
 
-@manual{sysfs-5,
+@manual{sysfs(5),
     year = {2025.05.17},
     author = {Michael Kerrisk},
     title = {sysfs(5) — Linux manual page},
