@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"sort"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -16,11 +17,12 @@ type ShowService struct {
 	Intent string
 }
 
-func (service ShowService) Start(opts *mqtt.ClientOptions) {
+func (service ShowService) Start(opts *mqtt.ClientOptions, quit chan os.Signal) {
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		log.Fatal("Could not establish connection with MQTT server: ", token.Error())
 	}
+	log.Println("[ShowService] Connected to the MQTT server.")
 
 	if token := client.Subscribe(service.Intent, 1, func(client mqtt.Client, message mqtt.Message) {
 		msg := message.Payload()
@@ -44,4 +46,8 @@ func (service ShowService) Start(opts *mqtt.ClientOptions) {
 		log.Fatalf("Store service %s failed to subscribe to %s: %v", service.Unit, service.Intent, token.Error())
 	}
 	log.Println("[ShowService] Subscribed to", service.Intent, "successfully.")
+
+	<-quit // block until quitting signal
+	log.Println("[ShowService] Disconnecting mqtt clien. Quitting.")
+	client.Disconnect(0)
 }

@@ -4,55 +4,78 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"os"
 	"strconv"
+	"strings"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/jochenvg/go-udev"
 )
+
+const batPath = "/sys/class/power_supply/BAT0/capacity"
 
 type CapacityService struct {
 	Unit   string
 	Status string
-	Event  string
 }
 
-func (service CapacityService) Start(opts *mqtt.ClientOptions) {
+func pollBattery(ctx context.Context, capacityCh chan<- int, errCh chan<- error) {
+	previousCapacity := 0
+	log.Println("[pollBattery] Starting the poll...")
+
+	// instead of a blocking time.Sleep
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("[pollBattery] Context canceled. Shutting down.")
+			return
+
+		case <-ticker.C:
+			content, err := os.ReadFile(batPath)
+			if err != nil {
+				errCh <- err
+				continue
+			}
+
+			capacity, err := strconv.Atoi(strings.TrimSpace(string(content)))
+			if err != nil {
+				errCh <- err
+				continue
+			}
+			log.Println("[pollBattery] previous capacity:", previousCapacity, "\tcapacity:", capacity)
+
+			if capacity != previousCapacity {
+				capacityCh <- capacity
+			}
+
+			previousCapacity = capacity
+		}
+	}
+}
+
+func (service CapacityService) Start(opts *mqtt.ClientOptions, quit chan os.Signal) {
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		log.Fatal("Could not establish connection with MQTT server: ", token.Error())
 	}
-
-	// Create the `udev` environment to get the notified when the battery percentage changes.
-	u := udev.Udev{}
-	m := u.NewMonitorFromNetlink("udev")
-	m.FilterAddMatchSubsystem("power_supply")
+	log.Println("[CapacityService] Connected to the MQTT server.")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// create the channel that notifies us when the power capacity changes
-	devices, errors, err := m.DeviceChan(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
+	capacityCh := make(chan int)
+	errCh := make(chan error)
+
+	go pollBattery(ctx, capacityCh, errCh)
 
 	for {
 		select {
-		case event, ok := <-devices:
+		case capacity, ok := <-capacityCh:
 			if !ok {
 				return
-			}
-			if event.Action() != "change" {
-				continue
-			}
-
-			properties := event.Properties()
-			capacity, err := strconv.Atoi(properties["POWER_SUPPLY_CAPACITY"])
-			status := properties["POWER_SUPPLY_STATUS"]
-
-			if err != nil {
-				log.Println("[CapacityService] Could not convert the power supply capacity to int.")
-				continue
 			}
 
 			jsonData, _ := json.Marshal(dataStore{
@@ -62,15 +85,18 @@ func (service CapacityService) Start(opts *mqtt.ClientOptions) {
 
 			client.Publish(service.Status, 1, false, string(jsonData))
 			log.Println("[CapacityService] Published", string(jsonData), "on topic", service.Status)
-			client.Publish(service.Event, 1, false, status)
-			log.Println("[CapacityService] Published", status, "on topic", service.Event)
 
-		case err, ok := <-errors:
+		case err, ok := <-errCh:
 			if !ok {
 				return
 			}
 
 			log.Fatal(err)
+
+		case <-quit:
+			log.Println("[CapacityService] Disconnecting mqtt clien. Quitting.")
+			client.Disconnect(0)
+			return
 		}
 	}
 }

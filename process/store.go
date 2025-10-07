@@ -3,6 +3,7 @@ package process
 import (
 	"encoding/json"
 	"log"
+	"os"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -18,13 +19,14 @@ type StoreService struct {
 	Status string
 }
 
-func (service StoreService) Start(opts *mqtt.ClientOptions) {
+func (service StoreService) Start(opts *mqtt.ClientOptions, quit chan os.Signal) {
 	latestReading := make(map[string]int)
 
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		log.Fatal("Could not establish connection with MQTT server: ", token.Error())
 	}
+	log.Println("[StoreService] Connected to the MQTT server.")
 
 	if token := client.Subscribe(service.Intent, 1, func(client mqtt.Client, message mqtt.Message) {
 		msg := message.Payload()
@@ -48,4 +50,8 @@ func (service StoreService) Start(opts *mqtt.ClientOptions) {
 		log.Fatalf("Store service %s failed to subscribe to %s: %v", service.Unit, service.Intent, token.Error())
 	}
 	log.Println("[StoreService] Subscribed to", service.Intent, "successfully.")
+
+	<-quit // block until quit signal
+	log.Println("[StoreService] Disconnecting from mqtt client. Quitting.")
+	client.Disconnect(0)
 }
