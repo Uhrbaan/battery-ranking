@@ -7,7 +7,14 @@ typst compile report.typ && xdg-open report.pdf
 ```
 
 # Battery Ranking 
-To build the project, you need to have go installed.
+To build and use the project: 
+
+```sh 
+sudo apt install golang # install go 
+git clone https://github.com/Uhrbaan/battery-ranking.git # clone the repository
+cd battery-ranking
+go run . --all # run the program and all its services
+```
 
 ## Usage 
 ```
