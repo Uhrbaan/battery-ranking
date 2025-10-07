@@ -6,10 +6,10 @@ For more information, refer to the report written in typst.
 typst compile report.typ && xdg-open report.pdf
 ```
 
-= Battery Ranking 
+# Battery Ranking 
 To build the project, you need to have go installed.
 
-== Usage 
+## Usage 
 ```
   -all
     	Use this flag to start all the services.
