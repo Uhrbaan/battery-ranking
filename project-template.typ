@@ -44,6 +44,17 @@
     numbering: "1",
     header: title + h(1fr) + author,
   )
+  // let style-number(number) = text(gray)[#number]
+  // show raw.where(block: true): it => grid(
+  //   columns: 2,
+  //   align: (right, left),
+  //   gutter: 0.5em,
+  //   ..it.lines
+  //     .enumerate()
+  //     .map(((i, line)) => (style-number(i + 1), line))
+  //     .flatten()
+  // )
+
   show link: it => underline(it, stroke: blue+1.5pt)
   set par(first-line-indent: 1em)
 
