@@ -91,10 +91,78 @@ The code waits for a timer to expire (which will send a signal through the `tick
 Once we are notified of the current capacity, `CapacityService` will package the display name of the device and its battery capacity in a json object, and send it through mosquitto to the topic stored in `Status`.
 
 == `StoreService`
+This service aggregates messages comming of different `CapacityService`s from different computers.
+It combines them into a ```go map``` containing both the computer's identifier and battery level. 
+It does this every time it recieves a message ont the `capacity` topic. 
+All of this is done within the subscription described in @StoreService-simplified.
 
+First, we subscribe to the intent of the `StoreService` -- which is the status of the previous `CapacityService` -- to execute a function each time the topic recieves a new message.
+This function reads the message, adapts it to a usable type, and stores it as a map (`latestReading`) as to differentiate the different computers and their battery levels.
+Finally, that map is again converted to JSON and sent to The next service.
+
+#figure(
+  ```go 
+  // Subscription to the `capacity` topic
+  if token := client.Subscribe(service.Intent, 1, func(client mqtt.Client, message mqtt.Message) {
+      // Getting the data from Intent and converting it to a usable type
+      msg := message.Payload()
+      var data dataStore
+      err := json.Unmarshal(msg, &data)
+
+      // Updating the stored data with the new data
+      if data.DisplayName != "" {
+          latestReading[data.DisplayName] = data.Percentage
+      }
+
+      // Encoding the merged data and publishing it
+      jsonData, _ := json.Marshal(latestReading)
+      client.Publish(service.Status, 1, false, string(jsonData))
+  }); // ...
+  ```,
+  caption: [Code responsible for getting all the battery levels from different computers and combining them into a single list.]
+) <StoreService-simplified>
+
+While running multiple `StoreService` processes is safe -- it will not break the program -- it is generally advised not to, since the next service will recieve more and redundant data if you do so. 
+
+== `ShowService`
+The final service is the `ShowService`. It simply gets data from the previous service and displays it on a console. 
+@ShowService-simplified shows the code that does it. 
+We subscribe to the service's intent, which is where the `StoreService` posts to, extract the message and convert it back into a ```go map```. 
+Then, to prepare the display we sort the different computers into a list according to their corresponding battery levels, and finally, we print that list to the console.
+
+#figure(
+  ```go 
+  // Subscription to the `store` topic
+  if token := client.Subscribe(service.Intent, 1, func(client mqtt.Client, message mqtt.Message) {
+      // Getting and processing the message from intent
+      msg := message.Payload()
+      var data dataShow
+      json.Unmarshal(msg, &data)
+
+      // Sorting the different entries according to their capacities
+      keys := make([]string, 0, len(data))
+      for k := range data {
+          keys = append(keys, k)
+      }
+      sort.Slice(keys, func(i, j int) bool {
+          return data[keys[i]] < data[keys[j]]
+      })
+
+      // Printing processed data to the console
+      fmt.Println("Who has the lowest battery ?\n===========================")
+      for i, key := range keys {
+          fmt.Printf("%2d %s @ %d%%\n", i+1, key, data[key])
+      }
+	});
+  ```,
+  caption: [Code printing the different computer's battery levels to the console.]
+) <ShowService-simplified>
 
 = Result
+
+
 = Reasoning
 = Conclusion
 
+#pagebreak()
 #bibliography("bibliography.bib")

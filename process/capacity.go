@@ -12,11 +12,34 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-const batPath = "/sys/class/power_supply/BAT0/capacity"
+const batDir = "/sys/class/power_supply/"
+
+var batPath = "/sys/class/power_supply/BAT0/capacity"
 
 type CapacityService struct {
 	Unit   string
 	Status string
+}
+
+// This function runs before the rest. It will make sure that the program picks up on a battery if there is any.
+func init() {
+	entries, err := os.ReadDir(batDir)
+	if err != nil {
+		log.Fatal("Device is not compatible:", err)
+	}
+
+	for _, entry := range entries {
+		// The /sys/class/power_supply/ path is a virtual file system that contains information about kernel objects, specifically devices linked to power.
+		// Usually, battery information is stored in a folder named BAT with the battery number.
+		// On most laptops, this is either 0 or 1.
+		if strings.Contains(entry.Name(), "BAT") {
+			batPath = batDir + entry.Name() + "/capacity"
+			log.Println("[CapacityService] Initializing the battery path to", batPath)
+			return
+		}
+	}
+
+	log.Fatal("[CapacityService] The program could not find a battery in", batDir)
 }
 
 // Function polling the battery at batPath
