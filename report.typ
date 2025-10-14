@@ -20,12 +20,12 @@ Ce serait également bien de réfléchir à comment est ce qu'il faut évoluer l
 _
 
 = Idea
-This project aims to allow computers to connect a network where they can share their battery capacity to figure out which computer has the lowest one. 
+This project allows linux machines to connect to a mosquitto network and share their battery capacity. 
+The program will then display which machines have the lowest battery level.
+Such a system could be expanded to monitor several aspects of the computers, helping for example an IT team to know how and when to service the machines.
 
-== Goal
 The goal of this project is to learn how to design and implement a project in an event-driven architecture, more specifically using the standard #link("https://mosquitto.org/")[Mosquitto] protocol developped by the eclipse foundation. 
-
-The secondary and personal goal of this project is to learn the #link("https://go.dev/")[Go] (often called Golang) programming language and its concurrency model.
+The secondary and personal goal of this project is to learn the #link("https://go.dev/")[Go] programming language and its concurrency model.
 
 = Design
 The Project is divided into three processes, which are all located in the `process` module. 
@@ -33,13 +33,16 @@ The first one, `CapacityService` is tasked to continously check for the change i
 
 The second, `StoreService` listens for outgoing messages from `CapacityService` and aggregates the messages comming from different computers as to store their respective battery capacity. 
 It will then publish a message conttaining all the computers identifiers and their battery levels. 
-It will thus serve a role of mediator, since it prepares the data for the next service.
+The service serves a role of *mediator*.
+It processes data from a first service, and sends the result to the next one.
 
 The last service, `ShowService` recieves the full list of computers with their battery percentage and displays it to a console.
 
 == Limitations
 While as many `capacity` or `show` services can be used at once, using multiple `store` services might produce some unexpected behavior. 
-Whilst it will not break the whole architecture, `ShowService` will show multiple and possibly redundant information since it will recieve the final data from multiple sources.
+The `ShowService` will display the received data from _each_ active `StoreService`, leading to redundant information being shown.
+
+// TODO: implement a system when storeservice dies, since it breaks the flow of information.
 
 = Implementation
 The project is implemented as a single go project, where each service runs inside its own #link("https://go.dev/tour/concurrency/1")[goroutine].
@@ -50,7 +53,8 @@ Each process provides essential data like related topics inside a ```go struct``
 
 A process also may or may not define a ```go type``` with #link("https://go.dev/wiki/Well-known-struct-tags")[struct tags] to define what the shape of the `JSON` data the service expects. 
 
-These two implementation details help us follow the `DUISE` -- Documentation, Unit, Intent, Status, Event -- approach. The data the service `struct` holds corresponds to the different intent, status, or event topics, and the unit field is used to identify the process.
+These two implementation details help us follow the `DUISE` -- Documentation, Unit, Intent, Status, Event -- approach. 
+The data the service `struct` holds corresponds to the different intent, status, or event topics, and the unit field is used to identify the process.
 The documentation part, or the description of the data a service expects, is handled by the ```go type``` we just talked about.
 
 == `CapacityService`
@@ -89,6 +93,11 @@ The code waits for a timer to expire (which will send a signal through the `tick
 ) <pollBattery-simplified>
 
 Once we are notified of the current capacity, `CapacityService` will package the display name of the device and its battery capacity in a json object, and send it through mosquitto to the topic stored in `Status`.
+
+Note that at first, this service was using `udev`, the Linux Kernel device manager to get its data.
+The service was connecting to `udev`'s event system, which would have been more in line with the course's objective. 
+Hovever, that proved unreliable since battery capacity changes did not reliably emit events. 
+If this implementation is of interest, you may checkout commit `d788604`.
 
 == `StoreService`
 This service aggregates messages comming of different `CapacityService`s from different computers.
@@ -159,10 +168,13 @@ Then, to prepare the display we sort the different computers into a list accordi
 ) <ShowService-simplified>
 
 = Result
+The program runs as expected on compatible devices.
+It has been tested running on both Ubuntu and Fedora laptops. 
 
+A video showing the program running on two different laptops can be viewed at #link("https://kdrive.infomaniak.com/app/share/1618622/4811f6b8-1228-4b97-8b5c-7e84efd27b2c").
 
 = Reasoning
 = Conclusion
 
 #pagebreak()
-#bibliography("bibliography.bib")
+#bibliography("bibliography.bib"))

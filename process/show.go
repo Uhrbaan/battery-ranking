@@ -47,6 +47,7 @@ func (service ShowService) Start(opts *mqtt.ClientOptions, quit chan os.Signal) 
 		for i, key := range keys {
 			fmt.Printf("%2d %s @ %d%%\n", i+1, key, data[key])
 		}
+		fmt.Print("\n\n")
 	}); token.Wait() && token.Error() != nil {
 		log.Fatalf("Store service %s failed to subscribe to %s: %v", service.Unit, service.Intent, token.Error())
 	}
