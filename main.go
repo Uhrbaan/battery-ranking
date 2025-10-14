@@ -36,6 +36,7 @@ var (
 	broker          = flag.String("broker", brokerURL, "Custom broker url. Should be shaped like \"tcp://broker.emqx.io:1883\"")
 	displayName     = flag.String("display", "capacity-"+id, "The displayed name of your computer.")
 	capacityService = flag.Bool("capacity", false, "Use this flag to start the capacity service.")
+	simulateBattery = flag.Bool("simulate", false, "Use this flag to simulate the battery capacity instead of reading it.")
 	storeService    = flag.Bool("store", false, "Use this flag to start the storage/aggregation service.")
 	showService     = flag.Bool("show", false, "Use this flag to start the show service, which will display the ranking in your terminal.")
 	allServices     = flag.Bool("all", false, "Use this flag to start all the services.")
@@ -57,10 +58,19 @@ func main() {
 		capacityCfg := mqtt.NewClientOptions()
 		capacityCfg.AddBroker(*broker)
 		capacityCfg.SetClientID("capacity-" + id)
-		go process.CapacityService{
+
+		service := process.CapacityService{
 			Unit:   *displayName,
 			Status: rootTopic + "/sensor/capacity/status",
-		}.Start(capacityCfg, quit)
+		}
+
+		if *simulateBattery {
+			service.BatteryProvider = process.SimulateBattery
+		} else {
+			service.BatteryProvider = process.PollBattery
+		}
+
+		go service.Start(capacityCfg, quit)
 	}
 
 	if *storeService || *allServices {

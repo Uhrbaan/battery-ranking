@@ -3,7 +3,9 @@ package process
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
+	"math/rand/v2"
 	"os"
 	"strconv"
 	"strings"
@@ -17,8 +19,9 @@ const batDir = "/sys/class/power_supply/"
 var batPath = "/sys/class/power_supply/BAT0/capacity"
 
 type CapacityService struct {
-	Unit   string
-	Status string
+	Unit            string
+	Status          string
+	BatteryProvider func(ctx context.Context, capacityCh chan<- int, errCh chan<- error)
 }
 
 // This function runs before the rest. It will make sure that the program picks up on a battery if there is any.
@@ -43,7 +46,7 @@ func init() {
 }
 
 // Function polling the battery at batPath
-func pollBattery(ctx context.Context, capacityCh chan<- int, errCh chan<- error) {
+func PollBattery(ctx context.Context, capacityCh chan<- int, errCh chan<- error) {
 	previousCapacity := 0
 	log.Println("[pollBattery] Starting the poll...")
 
@@ -84,11 +87,57 @@ func pollBattery(ctx context.Context, capacityCh chan<- int, errCh chan<- error)
 	}
 }
 
+func SimulateBattery(ctx context.Context, capacityCh chan<- int, errCh chan<- error) {
+	capacity := rand.IntN(100 + 1)
+	var capacityChange int
+	capacityChange = rand.IntN(3+1)*2 - 3
+	if capacityChange == 0 {
+		capacityChange = 1
+	}
+
+	log.Println("[batterySimulation] Starting the simulation...")
+
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	log.Printf("[SimulateBattery] Simulating a computer starting at %d%% and gaining %d%% every 30 seconds.", capacity, capacityChange)
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("[batterySimulation]")
+			return
+
+		case <-ticker.C:
+			capacity += capacityChange
+			capacityCh <- capacity
+
+			if capacity == 0 {
+				errCh <- errors.New("simulating process death")
+				return
+			}
+
+			// Stay at 100% if it reached it.
+			if capacity >= 100 {
+				capacityChange = 100
+			}
+		}
+	}
+}
+
+func connectMqttClient(opts *mqtt.ClientOptions) (client mqtt.Client, err error) {
+	client = mqtt.NewClient(opts)
+	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		err = token.Error()
+	}
+	return
+}
+
 func (service CapacityService) Start(opts *mqtt.ClientOptions, quit chan os.Signal) {
 	// Connecting to the Mosquitto client
-	client := mqtt.NewClient(opts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		log.Fatal("Could not establish connection with MQTT server: ", token.Error())
+	client, err := connectMqttClient(opts)
+	if err != nil {
+		log.Fatal("Could not establish connection with MQTT server: ", err)
 	}
 	log.Println("[CapacityService] Connected to the MQTT server.")
 
@@ -99,7 +148,7 @@ func (service CapacityService) Start(opts *mqtt.ClientOptions, quit chan os.Sign
 	capacityCh := make(chan int)
 	errCh := make(chan error)
 
-	go pollBattery(ctx, capacityCh, errCh)
+	go service.BatteryProvider(ctx, capacityCh, errCh)
 
 	// Listning for the responses from the polling function
 	for {

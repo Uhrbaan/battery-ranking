@@ -174,6 +174,7 @@ It has been tested running on both Ubuntu and Fedora laptops.
 A video showing the program running on two different laptops can be viewed at #link("https://kdrive.infomaniak.com/app/share/1618622/4811f6b8-1228-4b97-8b5c-7e84efd27b2c").
 
 = Reasoning
+// Pourquoi on a choisi l'exemple
 = Conclusion
 
 #pagebreak()
