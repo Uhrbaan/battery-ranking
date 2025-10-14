@@ -70,7 +70,7 @@ The code waits for a timer to expire (which will send a signal through the `tick
 
 #figure(
   ```go 
-  func pollBattery(ctx context.Context, capacityCh chan<- int, errCh chan<- error) {
+  func PollBattery(ctx context.Context, capacityCh chan<- int, errCh chan<- error) {
     // ...
     for {
       select {
@@ -98,6 +98,9 @@ Note that at first, this service was using `udev`, the Linux Kernel device manag
 The service was connecting to `udev`'s event system, which would have been more in line with the course's objective. 
 Hovever, that proved unreliable since battery capacity changes did not reliably emit events. 
 If this implementation is of interest, you may checkout commit `d788604`.
+
+For ease of testing, a simulation option was also added. 
+The core principle is the same as the polling process, but instead of reading a file, the process adds or removes a random amount from a virtual battery capacity, unil it reaches 0 and kills the service, or it reaches 100 and it stays at 100.
 
 == `StoreService`
 This service aggregates messages comming of different `CapacityService`s from different computers.
@@ -172,6 +175,10 @@ The program runs as expected on compatible devices.
 It has been tested running on both Ubuntu and Fedora laptops. 
 
 A video showing the program running on two different laptops can be viewed at #link("https://kdrive.infomaniak.com/app/share/1618622/4811f6b8-1228-4b97-8b5c-7e84efd27b2c").
+
+== What happens if `CapacityService` crashes ?
+== What happens if `StoreService` crashes ?
+== What happens if `ShowService` happens ?
 
 = Reasoning
 // Pourquoi on a choisi l'exemple

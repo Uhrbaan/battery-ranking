@@ -55,9 +55,10 @@ func main() {
 
 	if *capacityService || *allServices {
 		log.Println("Starting CapacityService")
-		capacityCfg := mqtt.NewClientOptions()
-		capacityCfg.AddBroker(*broker)
-		capacityCfg.SetClientID("capacity-" + id)
+		cfg := mqtt.NewClientOptions()
+		cfg.AddBroker(*broker)
+		cfg.SetClientID("capacity-" + id)
+		cfg.SetWill(rootTopic+"/sensor/capacity/event/death", *displayName, 1, false)
 
 		service := process.CapacityService{
 			Unit:   *displayName,
@@ -70,7 +71,7 @@ func main() {
 			service.BatteryProvider = process.PollBattery
 		}
 
-		go service.Start(capacityCfg, quit)
+		go service.Start(cfg, quit)
 	}
 
 	if *storeService || *allServices {
@@ -80,7 +81,7 @@ func main() {
 		storeCfg.SetClientID("store-" + id)
 		go process.StoreService{
 			Unit:   storeCfg.ClientID,
-			Intent: rootTopic + "/sensor/capacity/status",
+			Intent: [2]string{rootTopic + "/sensor/capacity/status", rootTopic + "/sensor/capacity/event/death"},
 			Status: rootTopic + "/actuators/store/status",
 		}.Start(storeCfg, quit)
 	}

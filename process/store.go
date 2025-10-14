@@ -14,9 +14,11 @@ type dataStore struct {
 	Percentage  int    `json:"percentage"`
 }
 
+// The first intent is for the connection to the capacity services
+// The second intent is for the event of a disconnection of a capacity service.
 type StoreService struct {
 	Unit   string
-	Intent string
+	Intent [2]string
 	Status string
 }
 
@@ -32,7 +34,7 @@ func (service StoreService) Start(opts *mqtt.ClientOptions, quit chan os.Signal)
 	log.Println("[StoreService] Connected to the MQTT server.")
 
 	// Subscription to the Intent topic.
-	if token := client.Subscribe(service.Intent, 1, func(client mqtt.Client, message mqtt.Message) {
+	if token := client.Subscribe(service.Intent[0], 1, func(client mqtt.Client, message mqtt.Message) {
 		// Getting the data from Intent
 		msg := message.Payload()
 		log.Println("[StoreService] got message", string(msg), "on topic", service.Intent)
@@ -57,6 +59,17 @@ func (service StoreService) Start(opts *mqtt.ClientOptions, quit chan os.Signal)
 		log.Fatalf("Store service %s failed to subscribe to %s: %v", service.Unit, service.Intent, token.Error())
 	}
 	log.Println("[StoreService] Subscribed to", service.Intent, "successfully.")
+
+	if token := client.Subscribe(service.Intent[1], 1, func(client mqtt.Client, message mqtt.Message) {
+		// Getting the data from Intent
+		msg := message.Payload()
+		log.Println("[StoreService] got LastWill", string(msg), "on topic", service.Intent)
+
+		// The message is supposed to contain the unit of the service that died.
+		delete(latestReading, string(msg))
+	}); token.Wait() && token.Error() != nil {
+		log.Fatalf("Store service %s failed to subscribe to %s: %v", service.Unit, service.Intent, token.Error())
+	}
 
 	// Graceful shutdown when the process is interupted.
 	<-quit
