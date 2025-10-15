@@ -32,15 +32,17 @@ const (
 )
 
 var (
-	id              = uuid.NewString()
-	broker          = flag.String("broker", brokerURL, "Custom broker url. Should be shaped like \"tcp://broker.emqx.io:1883\"")
-	displayName     = flag.String("display", "capacity-"+id, "The displayed name of your computer.")
-	capacityService = flag.Bool("capacity", false, "Use this flag to start the capacity service.")
-	simulateBattery = flag.Bool("simulate", false, "Use this flag to simulate the battery capacity instead of reading it.")
-	storeService    = flag.Bool("store", false, "Use this flag to start the storage/aggregation service.")
-	showService     = flag.Bool("show", false, "Use this flag to start the show service, which will display the ranking in your terminal.")
-	allServices     = flag.Bool("all", false, "Use this flag to start all the services.")
-	verbose         = flag.Bool("v", false, "Enable logging")
+	id = uuid.NewString()
+
+	// setting up variables to parse command-line arguments.
+	broker           = flag.String("broker", brokerURL, "Custom broker url. Should be shaped like \"tcp://broker.emqx.io:1883\"")
+	displayName      = flag.String("display", "capacity-"+id, "The displayed name of your computer.")
+	capacityService  = flag.Bool("capacity", false, "Use this flag to start the capacity service.")
+	simulateBattery  = flag.Bool("simulate", false, "Use this flag to simulate the battery capacity instead of reading it.")
+	aggregateService = flag.Bool("aggregate", false, "Use this flag to start the storage/aggregation service.")
+	showService      = flag.Bool("show", false, "Use this flag to start the show service, which will display the ranking in your terminal.")
+	allServices      = flag.Bool("all", false, "Use this flag to start all the services.")
+	verbose          = flag.Bool("v", false, "Enable logging")
 )
 
 func main() {
@@ -62,7 +64,7 @@ func main() {
 
 		service := process.CapacityService{
 			Unit:   *displayName,
-			Status: rootTopic + "/sensor/capacity/status",
+			Status: rootTopic + "/sensor/capacity/status/battery",
 		}
 
 		if *simulateBattery {
@@ -74,15 +76,15 @@ func main() {
 		go service.Start(cfg, quit)
 	}
 
-	if *storeService || *allServices {
+	if *aggregateService || *allServices {
 		log.Println("Starting StoreService")
 		storeCfg := mqtt.NewClientOptions()
 		storeCfg.AddBroker(*broker)
 		storeCfg.SetClientID("store-" + id)
-		go process.StoreService{
+		go process.AggregateService{
 			Unit:   storeCfg.ClientID,
-			Intent: [2]string{rootTopic + "/sensor/capacity/status", rootTopic + "/sensor/capacity/event/death"},
-			Status: rootTopic + "/actuators/store/status",
+			Intent: [2]string{rootTopic + "/sensor/capacity/status/battery", rootTopic + "/sensor/capacity/event/death"},
+			Status: rootTopic + "/mediator/aggregate/status/aggregate",
 		}.Start(storeCfg, quit)
 	}
 
@@ -93,7 +95,7 @@ func main() {
 		showCfg.SetClientID("show-" + id)
 		go process.ShowService{
 			Unit:   showCfg.ClientID,
-			Intent: rootTopic + "/actuators/store/status",
+			Intent: rootTopic + "/mediator/aggregate/status/aggregate",
 		}.Start(showCfg, quit)
 	}
 

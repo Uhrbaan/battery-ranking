@@ -19,6 +19,11 @@ Il est conseillé de faire une vidéo du projet fonctionnant.
 Ce serait également bien de réfléchir à comment est ce qu'il faut évoluer le système lorsu'un service crashe.
 _
 
+```go  
+type test map[string]int
+delete(map, string(msg))
+```
+
 = Idea
 This project allows linux machines to connect to a mosquitto network and share their battery capacity. 
 The program will then display which machines have the lowest battery level.
@@ -48,16 +53,28 @@ The `ShowService` will display the received data from _each_ active `StoreServic
 The project is implemented as a single go project, where each service runs inside its own #link("https://go.dev/tour/concurrency/1")[goroutine].
 This allows us to run multiple services at once with the comfort of running a single program. 
 
-In the project, each process is implemented inside the `process` module.
-Each process provides essential data like related topics inside a ```go struct``` named after the service. Each processa also provides a `Start()` method that runs the code ralted to that service.
+The implementation of the processes follows the DUISE approach, where each process presents 
+*Documentation*, which descibres the shape the service expects, 
+a *Unit*, which is an identifier specific to the process, an *Intent* an ingoing topic which the process listens to, 
+a *Status*, which is an outgoing topic that describes the state of the process or some data, 
+and an *Event*, an outgoing event used to describe physical events. 
+
+The processes are implemented inside the `process` module.
+They provide ```go struct``` containing the topics and data needed for the service.
+Each process also provides a `Start()` method that initializes and starts the service.
 
 A process also may or may not define a ```go type``` with #link("https://go.dev/wiki/Well-known-struct-tags")[struct tags] to define what the shape of the `JSON` data the service expects. 
+This corresponds to the Documentation part of the DUISE approach.
 
-These two implementation details help us follow the `DUISE` -- Documentation, Unit, Intent, Status, Event -- approach. 
-The data the service `struct` holds corresponds to the different intent, status, or event topics, and the unit field is used to identify the process.
-The documentation part, or the description of the data a service expects, is handled by the ```go type``` we just talked about.
+#figure(
+  image("schema.svg"),
+  caption: [General dataflow between the processes.]
+) <general-dataflow>
 
-== `CapacityService`
+@general-dataflow shows how the data flows between the process. 
+`CapacityService` will first polls the battery through _syfs_ (see @capacity-service for more details) and sends it 
+
+== `CapacityService` <capacity-service>
 Our first service is defined with only the `Unit` and `Status` fields. Since do not need to listen to other topics, we don't define an `Intent`, and since we are only interested in the battery level of the device, we simply define a `Status` topic where the service will publish that information to.
 
 When the `Start()` method is called, the service first establishes a connection with the Mosquitto client, after which we start a function that polls the battery capacity every thirty seconds in the background, and wait for it to notify us through a #link("https://go.dev/tour/concurrency/2")[go channel] when the battery changes.

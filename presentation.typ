@@ -1,8 +1,9 @@
+#import "@preview/fletcher:0.5.8" as fletcher: diagram, node, edge
 #import "@preview/typslides:1.2.6": *
 #show: typslides.with(
   ratio: "4-3",
   theme: "bluey",
-  font: "Cy",
+  font: "Noto Sans",
   link-style: "color",
 )
 
@@ -24,8 +25,27 @@
 
 #title-slide[Demonstration]
 
-#slide(title: [Attempt at a _live_ demonstration])[
+#slide(title: [_Live_ Demo])[
+  + Install the go project:
+    #grayed[```sh 
+    sudo apt install golang # install go
+    git clone https://github.com/Uhrbaan/battery-ranking.git # clone the repo
+    cd battery-ranking
+    go mod tidy # install go packages
+    ```]
+  
+  + #block(sticky:true)[Run the project]
+    #grayed[```sh
+    # start the store and show services on one computer.
+    # they will respectively aggregate and display the collected data.
+    go run . -store -show 
 
+    # start the service reading your battery percentage.
+    # -v enable extensive logging
+    # -display=computer sets the diplayname of you laptop to "computer"
+    # use -simulate to simulate a random charge or discharge amount.
+    go run . -capacity -display=computer -v
+    ```]
 ]
 
 #slide(title: "A short video")[
@@ -33,3 +53,7 @@
 ]
 
 #title-slide[Inner workings]
+
+#slide(title: [Data Flow])[
+  #figure(image("schema.svg"))
+]

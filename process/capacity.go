@@ -154,7 +154,7 @@ func (service CapacityService) Start(opts *mqtt.ClientOptions, quit chan os.Sign
 				return
 			}
 
-			jsonData, _ := json.Marshal(dataStore{
+			jsonData, _ := json.Marshal(dataAggregate{
 				DisplayName: service.Unit,
 				Percentage:  capacity,
 			})
