@@ -8,7 +8,7 @@
   abstract: [
     This project details the design and implementation of a system for monitoring the battery status of Linux machines. Implemented in Go, the system utilizes an event-driven architecture based on the MQTT (Mosquitto) protocol to ensure decoupled communication. The solution is structured around three core processes: the _CapacityService_ (Sensor) which polls local battery capacity via `sysfs`; the _AggregateService_ (Mediator) which collects, and processes data; and the _ShowService_ (Actuator) which displays a ranked list of computers by lowest battery level. The project demonstrated battery ranking across multiple devices, achieving the goal of learning event-driven design principles and Go concurrency.
 
-    #align(center)[*Notes on AI usage*]
+    #align(center)[*On AI usage*]
     This project used AI to assist in the writing of this document, especially in the creation of the abstract and the conclusion, as well as helping in the reviewing process. 
     No large code sections have been generated using an LLM.
   ]
@@ -125,7 +125,7 @@ The removal is done with:
 delete(service.readings, string(displayName))
 ```
 
-== _ShowService_
+== ShowService
 The final service gets its data from `status/aggregate``` and converts it back to a ```go map[string]int```.
 It then sorts the the map into the `keys` list of `DisplayName`s according to the battery level of the device in an ascending order, and the prints it to the console with:
 ```go  
