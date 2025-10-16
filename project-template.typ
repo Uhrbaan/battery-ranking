@@ -57,7 +57,7 @@
 
   // show raw.where(block: false): it => box(fill: luma(240), outset: 2pt, radius: 2pt, it)
 
-  show link: it => underline(it, stroke: blue+1.5pt)
+  show link: it => underline(it, stroke: rgb("#0000EE")+1pt)
   set par(first-line-indent: 1em)
 
   body
