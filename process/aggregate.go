@@ -63,11 +63,11 @@ func (service AggregateService) Start(opts *mqtt.ClientOptions, quit chan os.Sig
 
 	if token := client.Subscribe(service.Intent[1], 1, func(client mqtt.Client, message mqtt.Message) {
 		// Getting the data from Intent
-		msg := message.Payload()
-		log.Println("[AggregateService] got LastWill", string(msg), "on topic", service.Intent)
+		displayName := message.Payload()
+		log.Println("[AggregateService] got LastWill", string(displayName), "on topic", service.Intent)
 
 		// The message is supposed to contain the unit of the service that died.
-		delete(service.readings, string(msg))
+		delete(service.readings, string(displayName))
 	}); token.Wait() && token.Error() != nil {
 		log.Fatalf("Aggregate service %s failed to subscribe to %s: %v", service.Unit, service.Intent, token.Error())
 	}

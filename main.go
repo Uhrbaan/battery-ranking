@@ -25,10 +25,12 @@ import (
 )
 
 const (
-	// brokerURL = "tcp://broker.emqx.io:1883"
-	// brokerURL = "tcp://localhost:1883"
 	brokerURL = "tcp://test.mosquitto.org:1883"
-	rootTopic = "example.com/sin.04028/project1"
+	rootTopic = "example.com/sin.04028/battery-ranking"
+
+	batteryTopic     = rootTopic + "/sensor/capacity/status/battery"
+	sensorDeathTopic = rootTopic + "/sensor/capacity/event/death"
+	aggregateTopic   = rootTopic + "/mediator/aggregate/status/aggregate"
 )
 
 var (
@@ -60,11 +62,11 @@ func main() {
 		cfg := mqtt.NewClientOptions()
 		cfg.AddBroker(*broker)
 		cfg.SetClientID("capacity-" + id)
-		cfg.SetWill(rootTopic+"/sensor/capacity/event/death", *displayName, 1, false)
+		cfg.SetWill(sensorDeathTopic, *displayName, 1, false)
 
 		service := process.CapacityService{
 			Unit:   *displayName,
-			Status: rootTopic + "/sensor/capacity/status/battery",
+			Status: batteryTopic,
 		}
 
 		if *simulateBattery {
@@ -83,8 +85,8 @@ func main() {
 		storeCfg.SetClientID("store-" + id)
 		go process.AggregateService{
 			Unit:   storeCfg.ClientID,
-			Intent: [2]string{rootTopic + "/sensor/capacity/status/battery", rootTopic + "/sensor/capacity/event/death"},
-			Status: rootTopic + "/mediator/aggregate/status/aggregate",
+			Intent: [2]string{batteryTopic, sensorDeathTopic},
+			Status: aggregateTopic,
 		}.Start(storeCfg, quit)
 	}
 
@@ -95,7 +97,7 @@ func main() {
 		showCfg.SetClientID("show-" + id)
 		go process.ShowService{
 			Unit:   showCfg.ClientID,
-			Intent: rootTopic + "/mediator/aggregate/status/aggregate",
+			Intent: aggregateTopic,
 		}.Start(showCfg, quit)
 	}
 
